@@ -73,11 +73,16 @@ short* compute_new_term_sig(char* term, short* term_sig)
     return term_sig;
 }
 
-
+/* 
+    hash find has the highest hotpath and cpu usage, one possible way to fix this is having to 
+    find functions. Where hash find -> returns null -> lock -> hash find -> then adds the entry. 
+    While running different hash tables concurrently on separate threads. To then combine the entries
+    towards the end. 
+*/
 short* find_sig(char* term)
 {
     hash_term* entry; // cache that remembers kmers used before
-    HASH_FIND(hh, vocab, term, WORDLEN, entry);
+    HASH_FIND(hh, vocab, term, WORDLEN, entry); // hotpath
     if (entry == NULL)
     {
         entry = (hash_term*)malloc(sizeof(hash_term));

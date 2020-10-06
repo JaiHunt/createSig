@@ -341,3 +341,4 @@ healthchecksdb
 
 # FASTA files
 *.fasta
+*.fasta.part16_sigs03_64
