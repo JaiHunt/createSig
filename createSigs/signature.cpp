@@ -4,6 +4,7 @@
 #include <math.h>
 #include "uthash.h"
 #include <chrono>
+#include <processthreadsapi.h>
 
 typedef unsigned char byte;
 
@@ -11,6 +12,7 @@ typedef unsigned char byte;
 
 int DENSITY = 21;
 int PARTITION_SIZE;
+int NUM_THREADS = 4;
 
 int inverse[256];
 const char* alphabet = "CSTPAGNDEQHRKMILVFYW"; // unique animo acids
@@ -82,16 +84,18 @@ short* compute_new_term_sig(char* term, short* term_sig)
 short* find_sig(char* term)
 {
     hash_term* entry; // cache that remembers kmers used before
-    HASH_FIND(hh, vocab, term, WORDLEN, entry); // hotpath
+
+    HASH_FIND(hh, vocab, term, WORDLEN, entry); 
     if (entry == NULL)
     {
+        // lock hash function
+        HASH_FIND(hh, vocab, term, WORDLEN, entry);
         entry = (hash_term*)malloc(sizeof(hash_term));
         strncpy_s(entry->term, sizeof(entry->term), term, WORDLEN);
         memset(entry->sig, 0, sizeof(entry->sig));
         compute_new_term_sig(term, entry->sig);
         HASH_ADD(hh, vocab, term, WORDLEN, entry);
     }
-
     return entry->sig;
 }
 
