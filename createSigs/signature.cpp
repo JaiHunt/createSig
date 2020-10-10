@@ -4,7 +4,7 @@
 #include <math.h>
 #include "uthash.h"
 #include <chrono>
-#include <processthreadsapi.h>
+#include <Windows.h>
 
 typedef unsigned char byte;
 
@@ -16,12 +16,6 @@ int NUM_THREADS = 4;
 
 int inverse[256];
 const char* alphabet = "CSTPAGNDEQHRKMILVFYW"; // unique animo acids
-
-/* CSTPAGNDEQHRKMILVFYW = 01234567890123456789
-   e.g. MKI = 0, -1, 1, 0, 0, 1, 1, -1, 0, 0, -1
-   M = 13, K = 12, I = 14 = 13*20^2 + 12*20^1 + 1*20^0
-   This number will represent the specific kmer where that is 0 between 20^WORDLEN
-*/
 
 void seed_random(char* term, int length);
 short random_num(short max);
@@ -48,10 +42,8 @@ short* compute_new_term_sig(char* term, short* term_sig)
 
     int non_zero = SIGNATURE_LEN * DENSITY / 100; // set everything to 0
 
-
-    // 10.5% +ve
     int positive = 0;
-    while (positive < non_zero / 2)
+    while (positive < non_zero / 2) // 10.5% +ve
     {
         short pos = random_num(SIGNATURE_LEN); 
         if (term_sig[pos] == 0)
@@ -61,9 +53,8 @@ short* compute_new_term_sig(char* term, short* term_sig)
         }
     }
 
-    // 10.5% -ve
     int negative = 0;
-    while (negative < non_zero / 2)
+    while (negative < non_zero / 2) // 10.5% -ve
     {
         short pos = random_num(SIGNATURE_LEN);
         if (term_sig[pos] == 0)
@@ -75,17 +66,18 @@ short* compute_new_term_sig(char* term, short* term_sig)
     return term_sig;
 }
 
-/* 
-    hash find has the highest hotpath and cpu usage, one possible way to fix this is having to 
-    find functions. Where hash find -> returns null -> lock -> hash find -> then adds the entry. 
-    While running different hash tables concurrently on separate threads. To then combine the entries
-    towards the end. 
-*/
+DWORD WINAPI ParallelHash(LPVOID lpThreadParameter) {
+
+    return 0;
+}
+
 short* find_sig(char* term)
 {
     hash_term* entry; // cache that remembers kmers used before
 
-    HASH_FIND(hh, vocab, term, WORDLEN, entry); 
+    HASH_FIND(hh, vocab, term, WORDLEN, entry);
+
+    // create parallel hash tables
     if (entry == NULL)
     {
         // lock hash function
@@ -96,13 +88,22 @@ short* find_sig(char* term)
         compute_new_term_sig(term, entry->sig);
         HASH_ADD(hh, vocab, term, WORDLEN, entry);
     }
+
     return entry->sig;
 }
 
 
 void signature_add(char* term)
 {
-    short* term_sig = find_sig(term);
+    /* Creates Handle */
+    HANDLE* handles = new HANDLE[NUM_THREADS];
+
+    short* term_sig; 
+
+    for (int i = 0; i < NUM_THREADS; i++) {
+        handles[i] = CreateThread(NULL, 0, ParallelHash, (LPVOID)i, 0, NULL);
+        term_sig = find_sig(term);
+    }
     for (int i = 0; i < SIGNATURE_LEN; i++)
         doc_sig[i] += term_sig[i];
 }
@@ -113,15 +114,12 @@ void compute_signature(char* sequence, int length)
 {
     memset(doc_sig, 0, sizeof(doc_sig)); // sets total to all 0s
 
-    // goes through each kmer that makes the parition and adds them to the above doc sig
-    for (int i = 0; i < length - WORDLEN + 1; i++)
+    for (int i = 0; i < length - WORDLEN + 1; i++) // goes through each kmer that makes the parition and adds them to the above doc sig
         signature_add(sequence + i); // Adds a complete row each loop iteration
 
-    // save document number to sig file
-    fwrite(&doc, sizeof(int), 1, sig_file);
+    fwrite(&doc, sizeof(int), 1, sig_file); // save document number to sig file
 
-    // flatten and output to sig file
-    for (int i = 0; i < SIGNATURE_LEN; i += 8)
+    for (int i = 0; i < SIGNATURE_LEN; i += 8) // flatten and output to sig file
     {
         byte c = 0;
         for (int j = 0; j < 8; j++)
