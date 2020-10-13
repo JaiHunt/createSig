@@ -126,7 +126,7 @@ short* find_sig(char* term, hash_term** vocab)
 
 void signature_add(char* term)
 {
-	short* term_sig = find_sig(term);
+	short* term_sig = find_sig(term, );
 	for (int i = 0; i < SIGNATURE_LEN; i++)
 		doc_sig[i] += term_sig[i];
 }
