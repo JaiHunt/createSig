@@ -66,18 +66,11 @@ short* compute_new_term_sig(char* term, short* term_sig)
     return term_sig;
 }
 
-DWORD WINAPI ParallelHash(LPVOID lpThreadParameter) {
-
-    return 0;
-}
-
 short* find_sig(char* term)
 {
     hash_term* entry; // cache that remembers kmers used before
 
     HASH_FIND(hh, vocab, term, WORDLEN, entry);
-
-    // create parallel hash tables
     if (entry == NULL)
     {
         // lock hash function
@@ -95,15 +88,7 @@ short* find_sig(char* term)
 
 void signature_add(char* term)
 {
-    /* Creates Handle */
-    HANDLE* handles = new HANDLE[NUM_THREADS];
-
-    short* term_sig; 
-
-    for (int i = 0; i < NUM_THREADS; i++) {
-        handles[i] = CreateThread(NULL, 0, ParallelHash, (LPVOID)i, 0, NULL);
-        term_sig = find_sig(term);
-    }
+    short* term_sig = find_sig(term);
     for (int i = 0; i < SIGNATURE_LEN; i++)
         doc_sig[i] += term_sig[i];
 }
