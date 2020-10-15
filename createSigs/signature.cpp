@@ -6,10 +6,12 @@
 #include <chrono>
 #include <thread>
 #include <mutex>
+#include <omp.h>
 
 typedef unsigned char byte;
 
 #define SIGNATURE_LEN 64
+#define N 4 
 
 int DENSITY = 21;
 int PARTITION_SIZE;
@@ -52,13 +54,13 @@ int doc_sig[SIGNATURE_LEN];
 
 int WORDLEN;
 FILE* sig_file;
-
+/*
 typedef struct
 {
 	char term[100];
 	short sig[SIGNATURE_LEN];
 	UT_hash_handle hh;
-} hash_term;
+} hash_term; */
 
 // turn hash_term into a parameter, 
 // hash_term* vocab = NULL;
@@ -95,6 +97,22 @@ short* compute_new_term_sig(char* term, short* term_sig)
 		}
 	}
 	return term_sig;
+}
+
+#pragma omp parallel
+{
+	hash_term* vocab = NULL;
+
+    #pragma omp parallel for
+	for (int i = 0; i < N; i++) {
+		placeholder();
+	}
+}
+
+void placeholder(char* term, hash_term** vocab) {
+	hash_term* entry;
+	HASH_FIND(hh, *vocab, term, WORDLEN, entry);
+	HASH_ADD(hh, *vocab, term, WORDLEN, entry);
 }
 
 std::mutex hashMut;
