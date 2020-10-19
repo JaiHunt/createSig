@@ -25,27 +25,6 @@ const char* alphabet = "CSTPAGNDEQHRKMILVFYW"; // unique animo acids
    This number will represent the specific kmer where that is 0 between 20^WORDLEN
 */
 
-/*
-
-
-	#pragma omp parallel
-	{
-		hash_tab * vocab = NULL
-		#pragma omp for (int i = 0; i < N; i++) {
-		do_stuff(..., &vocab)
-	}
-
-	other functions
-
-	void do_stuff( ...., hash_tab ** vocab )
-	{
-		HASH_FIND( .... *vocab  ..... )
-
-		HASH_ADD( .... *vocab ..... )
-
-
-	*/
-
 void seed_random(char* term, int length);
 short random_num(short max);
 void Init();
@@ -54,17 +33,6 @@ int doc_sig[SIGNATURE_LEN];
 
 int WORDLEN;
 FILE* sig_file;
-/*
-typedef struct
-{
-	char term[100];
-	short sig[SIGNATURE_LEN];
-	UT_hash_handle hh;
-} hash_term; */
-
-// turn hash_term into a parameter, 
-// hash_term* vocab = NULL;
-
 
 short* compute_new_term_sig(char* term, short* term_sig)
 {
@@ -103,19 +71,19 @@ short* compute_new_term_sig(char* term, short* term_sig)
 {
 	hash_term* vocab = NULL;
 
-    #pragma omp parallel for
-	for (int i = 0; i < N; i++) {
-		placeholder();
+	#pragma omp parallel for
+		for (int i = 0; i < N; i++) {
+			run_parahash(&vocab);
+		}
 	}
 }
 
-void placeholder(char* term, hash_term** vocab) {
+void run_parahash(hash_term** vocab)
+{
 	hash_term* entry;
 	HASH_FIND(hh, *vocab, term, WORDLEN, entry);
 	HASH_ADD(hh, *vocab, term, WORDLEN, entry);
 }
-
-std::mutex hashMut;
 
 /*
 	hash find has the highest hotpath and cpu usage, one possible way to fix this is having to
@@ -128,7 +96,6 @@ short* find_sig(char* term, hash_term** vocab)
 	hash_term* entry; // cache that remembers kmers used before
 
 	HASH_FIND(hh, *vocab, term, WORDLEN, entry); // hotpath
-
 	if (entry == NULL)
 	{
 		entry = (hash_term*)malloc(sizeof(hash_term));
@@ -137,10 +104,8 @@ short* find_sig(char* term, hash_term** vocab)
 		compute_new_term_sig(term, entry->sig);
 		HASH_ADD(hh, *vocab, term, WORDLEN, entry);
 	}
-
 	return entry->sig;
 }
-
 
 void signature_add(char* term)
 {
