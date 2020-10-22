@@ -182,12 +182,14 @@ void randinit(randctx* ctx, word flag)
 
 randctx R;
 
-void seed_random(char* term, int length)
+void seed_random(const char* term, int length)
 {
-    memset(R.randrsl, 0, sizeof(R.randrsl));
+    // memset(R.randrsl, 0, sizeof(R.randrsl));
+    memset(&R, 0, sizeof(R));
     strncpy_s((char*)(R.randrsl), sizeof(R.randrsl), term, length);
     randinit(&R, TRUE);
 }
+
 
 short random_num(short max)
 {

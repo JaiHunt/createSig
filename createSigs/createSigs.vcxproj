@@ -130,6 +130,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <OpenMPSupport>true</OpenMPSupport>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -140,7 +141,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ISAAC-rand.cpp" />
-    <ClCompile Include="signature.cpp" />
+    <ClCompile Include="signature.cpp">
+      <OpenMPSupport Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</OpenMPSupport>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="uthash.h" />
