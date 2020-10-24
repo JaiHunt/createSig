@@ -131,13 +131,15 @@ void compute_signature(const char* sequence, int length, signature &s)
 // Process arrays + accepts a vector of signatures.
 void partition(std::vector<std::string> input, std::vector<std::vector<signature>> output, int length)
 {
-    int m = (input.size() - 1) / (PARTITION_SIZE / 2); // signature blocks needed 
-    output.resize(m); // resize output to hold m signature blocks
-
-    for (int i = 0; i < (m - 1); i += PARTITION_SIZE / 2) {
-        compute_signature((char*)&input + i, min(PARTITION_SIZE, length - i), s);
-    }
-    
+#pragma omp parallel
+    {
+        int m = (input.size() - 1) / (PARTITION_SIZE / 2); // signature blocks needed 
+        output.resize(m); // resize output to hold m signature blocks
+        #pragma omp for
+        for (int i = 0; i < m; i += PARTITION_SIZE / 2) {
+            compute_signature((char*)&input + i, min(PARTITION_SIZE, length - i), s);
+        }
+    }   
 }
 
 int power(int n, int e)
