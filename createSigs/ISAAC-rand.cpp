@@ -1,195 +1,184 @@
-/*
- * ------------------------------------------------------------------------------
- *  rand.c: By Bob Jenkins.  My random number generator, ISAAC.  Public Domain.
- *  MODIFIED:
- *    960327: Creation (addition of randinit, really)
- *      970719: use context, not global variables, for internal state
- *        980324: added main (ifdef'ed out), also rearranged randinit()
- *          010626: Note that this is public domain
- *          ------------------------------------------------------------------------------
- *          */
-
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <stddef.h>
+#include <math.h>
+#include "uthash.h"
+#include <chrono>
 
-typedef  unsigned long long  ub8;
-#define UB8MAXVAL 0xffffffffffffffffLL
-#define UB8BITS 64
-typedef    signed long long  sb8;
-#define SB8MAXVAL 0x7fffffffffffffffLL
-typedef  unsigned long  int  ub4;   /* unsigned 4-byte quantities */
-#define UB4MAXVAL 0xffffffff
-typedef    signed long  int  sb4;
-#define UB4BITS 32
-#define SB4MAXVAL 0x7fffffff
-typedef  unsigned short int  ub2;
-#define UB2MAXVAL 0xffff
-#define UB2BITS 16
-typedef    signed short int  sb2;
-#define SB2MAXVAL 0x7fff
-typedef  unsigned       char ub1;
-#define UB1MAXVAL 0xff
-#define UB1BITS 8
-typedef    signed       char sb1;   /* signed 1-byte quantities */
-#define SB1MAXVAL 0x7f
-typedef                 int  word;  /* fastest type available */
+typedef unsigned char byte;
 
-#define bis(target,mask)  ((target) |=  (mask))
-#define bic(target,mask)  ((target) &= ~(mask))
-#define bit(target,mask)  ((target) &   (mask))
-#define align(a) (((ub4)a+(sizeof(void *)-1))&(~(sizeof(void *)-1)))
-#define abs(a)   (((a)>0) ? (a) : -(a))
-#define TRUE  1
-#define FALSE 0
-#define SUCCESS 0  /* 1 on VAX */
+#define SIGNATURE_LEN 64
 
+int DENSITY = 21;
+int PARTITION_SIZE;
 
+int inverse[256];
+const char* alphabet = "CSTPAGNDEQHRKMILVFYW";
 
-#define RANDSIZL   (8)
-#define RANDSIZ    (1<<RANDSIZL)
+void seed_random(char* term, int length);
+short random_num(short max);
+void Init();
 
-/* context of random number generator */
-struct randctx
+int doc_sig[SIGNATURE_LEN];
+
+int WORDLEN;
+FILE* sig_file;
+
+typedef struct
 {
-    ub4 randcnt;
-    ub4 randrsl[RANDSIZ];
-    ub4 randmem[RANDSIZ];
-    ub4 randa;
-    ub4 randb;
-    ub4 randc;
-};
-typedef  struct randctx  randctx;
+    char term[100];
+    short sig[SIGNATURE_LEN];
+    UT_hash_handle hh;
+} hash_term;
 
-/*
- * ------------------------------------------------------------------------------
- *   If (flag==TRUE), then use the contents of randrsl[0..RANDSIZ-1] as the seed.
- *   ------------------------------------------------------------------------------
- *   */
-void randinit(/*_ randctx *r, word flag _*/);
+hash_term* vocab = NULL;
 
-void isaac(/*_ randctx *r _*/);
-
-
-/*
- * ------------------------------------------------------------------------------
- *   Call rand(/o_ randctx *r _o/) to retrieve a single 32-bit random value
- *   ------------------------------------------------------------------------------
- *   */
-#define rand(r) \
-   (!(r)->randcnt-- ? \
-     (isaac(r), (r)->randcnt=RANDSIZ-1, (r)->randrsl[(r)->randcnt]) : \
-     (r)->randrsl[(r)->randcnt])
-
-
-#define ind(mm,x)  (*(ub4 *)((ub1 *)(mm) + ((x) & ((RANDSIZ-1)<<2))))
-#define rngstep(mix,a,b,mm,m,m2,r,x) \
-{ \
-  x = *m;  \
-  a = (a^(mix)) + *(m2++); \
-  *(m++) = y = ind(mm,x) + a + b; \
-  *(r++) = b = ind(mm,y>>RANDSIZL) + x; \
-}
-
-void     isaac(randctx* ctx)
-{
-    register ub4 a, b, x, y, * m, * mm, * m2, * r, * mend;
-    mm = ctx->randmem; r = ctx->randrsl;
-    a = ctx->randa; b = ctx->randb + (++ctx->randc);
-    for (m = mm, mend = m2 = m + (RANDSIZ / 2); m < mend; )
+void precompiledHash() {
+    for ()
+        for()
+    if (entry == NULL)
     {
-        rngstep(a << 13, a, b, mm, m, m2, r, x);
-        rngstep(a >> 6, a, b, mm, m, m2, r, x);
-        rngstep(a << 2, a, b, mm, m, m2, r, x);
-        rngstep(a >> 16, a, b, mm, m, m2, r, x);
+        entry = (hash_term*)malloc(sizeof(hash_term));
+        strncpy_s(entry->term, sizeof(entry->term), term, WORDLEN);
+        memset(entry->sig, 0, sizeof(entry->sig));
+        compute_new_term_sig(term, entry->sig);
+        HASH_ADD(hh, vocab, term, WORDLEN, entry);
     }
-    for (m2 = mm; m2 < mend; )
-    {
-        rngstep(a << 13, a, b, mm, m, m2, r, x);
-        rngstep(a >> 6, a, b, mm, m, m2, r, x);
-        rngstep(a << 2, a, b, mm, m, m2, r, x);
-        rngstep(a >> 16, a, b, mm, m, m2, r, x);
-    }
-    ctx->randb = b; ctx->randa = a;
 }
 
 
-#define mix(a,b,c,d,e,f,g,h) \
-{ \
-   a^=b<<11; d+=a; b+=c; \
-   b^=c>>2;  e+=b; c+=d; \
-   c^=d<<8;  f+=c; d+=e; \
-   d^=e>>16; g+=d; e+=f; \
-   e^=f<<10; h+=e; f+=g; \
-   f^=g>>4;  a+=f; g+=h; \
-   g^=h<<8;  b+=g; h+=a; \
-   h^=a>>9;  c+=h; a+=b; \
-}
-
-/* if (flag==TRUE), then use the contents of randrsl[] to initialize mm[]. */
-void randinit(randctx* ctx, word flag)
+short* compute_new_term_sig(char* term, short* term_sig)
 {
-    word i;
-    ub4 a, b, c, d, e, f, g, h;
-    ub4* m, * r;
-    ctx->randa = ctx->randb = ctx->randc = 0;
-    m = ctx->randmem;
-    r = ctx->randrsl;
-    a = b = c = d = e = f = g = h = 0x9e3779b9;  /* the golden ratio */
+    seed_random(term, WORDLEN);
 
-    for (i = 0; i < 4; ++i)          /* scramble it */
-    {
-        mix(a, b, c, d, e, f, g, h);
-    }
+    int non_zero = SIGNATURE_LEN * DENSITY / 100;
 
-    if (flag)
+    int positive = 0;
+    while (positive < non_zero / 2)
     {
-        /* initialize using the contents of r[] as the seed */
-        for (i = 0; i < RANDSIZ; i += 8)
+        short pos = random_num(SIGNATURE_LEN);
+        if (term_sig[pos] == 0)
         {
-            a += r[i]; b += r[i + 1]; c += r[i + 2]; d += r[i + 3];
-            e += r[i + 4]; f += r[i + 5]; g += r[i + 6]; h += r[i + 7];
-            mix(a, b, c, d, e, f, g, h);
-            m[i] = a; m[i + 1] = b; m[i + 2] = c; m[i + 3] = d;
-            m[i + 4] = e; m[i + 5] = f; m[i + 6] = g; m[i + 7] = h;
-        }
-        /* do a second pass to make all of the seed affect all of m */
-        for (i = 0; i < RANDSIZ; i += 8)
-        {
-            a += m[i]; b += m[i + 1]; c += m[i + 2]; d += m[i + 3];
-            e += m[i + 4]; f += m[i + 5]; g += m[i + 6]; h += m[i + 7];
-            mix(a, b, c, d, e, f, g, h);
-            m[i] = a; m[i + 1] = b; m[i + 2] = c; m[i + 3] = d;
-            m[i + 4] = e; m[i + 5] = f; m[i + 6] = g; m[i + 7] = h;
-        }
-    }
-    else
-    {
-        /* fill in m[] with messy stuff */
-        for (i = 0; i < RANDSIZ; i += 8)
-        {
-            mix(a, b, c, d, e, f, g, h);
-            m[i] = a; m[i + 1] = b; m[i + 2] = c; m[i + 3] = d;
-            m[i + 4] = e; m[i + 5] = f; m[i + 6] = g; m[i + 7] = h;
+            term_sig[pos] = 1;
+            positive++;
         }
     }
 
-    isaac(ctx);            /* fill in the first set of results */
-    ctx->randcnt = RANDSIZ;  /* prepare to use the first set of results */
+    int negative = 0;
+    while (negative < non_zero / 2)
+    {
+        short pos = random_num(SIGNATURE_LEN);
+        if (term_sig[pos] == 0)
+        {
+            term_sig[pos] = -1;
+            negative++;
+        }
+    }
+    return term_sig;
+}
+
+short* find_sig(char* term)
+{
+    hash_term* entry;
+    HASH_FIND(hh, vocab, term, WORDLEN, entry);
+    return entry->sig;
 }
 
 
-randctx R;
-
-void seed_random(char* term, int length)
+void signature_add(char* term)
 {
-    memset(R.randrsl, 0, sizeof(R.randrsl));
-    strncpy_s((char*)(R.randrsl), sizeof(R.randrsl), term, length);
-    randinit(&R, TRUE);
+    short* term_sig = find_sig(term);
+    for (int i = 0; i < SIGNATURE_LEN; i++)
+        doc_sig[i] += term_sig[i];
 }
 
-short random_num(short max)
+int doc = 0;
+
+void compute_signature(char* sequence, int length)
 {
-    return rand(&R) % max;
+    memset(doc_sig, 0, sizeof(doc_sig));
+
+    for (int i = 0; i < length - WORDLEN + 1; i++)
+        signature_add(sequence + i);
+
+    // save document number to sig file
+    fwrite(&doc, sizeof(int), 1, sig_file);
+
+    // flatten and output to sig file
+    for (int i = 0; i < SIGNATURE_LEN; i += 8)
+    {
+        byte c = 0;
+        for (int j = 0; j < 8; j++)
+            c |= (doc_sig[i + j] > 0) << (7 - j);
+        fwrite(&c, sizeof(byte), 1, sig_file);
+    }
+}
+
+#define min(a,b) ((a) < (b) ? (a) : (b))
+
+void partition(char* sequence, int length)
+{
+    int i = 0;
+    do
+    {
+        compute_signature(sequence + i, min(PARTITION_SIZE, length - i));
+        i += PARTITION_SIZE / 2;
+    } while (i + PARTITION_SIZE / 2 < length);
+    doc++;
+}
+
+int power(int n, int e)
+{
+    int p = 1;
+    for (int j = 0; j < e; j++)
+        p *= n;
+    return p;
+}
+
+int main(int argc, char* argv[])
+{
+    //const char* filename = "qut2.fasta";
+    const char* filename = "qut3.fasta";
+
+    WORDLEN = 3;
+    PARTITION_SIZE = 16;
+    int WORDS = power(20, WORDLEN);
+
+    for (int i = 0; i < strlen(alphabet); i++)
+        inverse[alphabet[i]] = i;
+
+    auto start = std::chrono::high_resolution_clock::now();
+
+    FILE* file;
+    errno_t OK = fopen_s(&file, filename, "r");
+
+    if (OK != 0)
+    {
+        fprintf(stderr, "Error: failed to open file %s\n", filename);
+        return 1;
+    }
+
+    char outfile[256];
+    sprintf_s(outfile, 256, "%s.part%d_sigs%02d_%d", filename, PARTITION_SIZE, WORDLEN, SIGNATURE_LEN);
+    fopen_s(&sig_file, outfile, "w");
+
+    char buffer[10000];
+    while (!feof(file))
+    {
+        fgets(buffer, 10000, file); // skip meta data line
+        fgets(buffer, 10000, file);
+        int n = (int)strlen(buffer) - 1;
+        buffer[n] = 0;
+        partition(buffer, n);
+    }
+    fclose(file);
+
+    fclose(sig_file);
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration = end - start;
+
+    printf("%s %f seconds\n", filename, duration.count());
+
+    return 0;
 }
