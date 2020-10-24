@@ -36,7 +36,7 @@ struct signature
     // pack the contents of the int array into the byte array 
     void Flatten()
     {
-        for (int i = 0; i < SIGNATURE_LEN/8; i++)
+        for (int i = 0; i < SIGNATURE_LEN / 8; i++)
         {
             sig_size[i] = 0;
             for (int j = 0; j < 8; j++)
@@ -110,14 +110,14 @@ short* find_sig(const char* term)
 
 signature s;
 
-void signature_add(int *doc_sig, const char *term)
+void signature_add(int* doc_sig, const char* term)
 {
     short* term_sig = find_sig(term);
     for (int i = 0; i < SIGNATURE_LEN; i++)
         doc_sig[i] += term_sig[i];
 }
 
-void compute_signature(const char* sequence, int length, signature &s)
+void compute_signature(const char* sequence, int length, signature& s)
 {
     //memset(s.doc_sig, 0, sizeof(s.doc_sig));
     std::fill(s.doc_sig, s.doc_sig + SIGNATURE_LEN, 0);
@@ -135,11 +135,11 @@ void partition(std::vector<std::string> input, std::vector<std::vector<signature
     {
         int m = (input.size() - 1) / (PARTITION_SIZE / 2); // signature blocks needed 
         output.resize(m); // resize output to hold m signature blocks
-        #pragma omp for
+#pragma omp for
         for (int i = 0; i < m; i += PARTITION_SIZE / 2) {
             compute_signature((char*)&input + i, min(PARTITION_SIZE, length - i), s);
         }
-    }   
+    }
 }
 
 int power(int n, int e)
@@ -189,8 +189,8 @@ int main(int argc, char* argv[])
     {
         fgets(buffer, 10000, file); // skip the meta data line
         fgets(buffer, 10000, file);
-        int n = (int)strlen(buffer) - 1; 
-        buffer[n] = 0; 
+        int n = (int)strlen(buffer) - 1;
+        buffer[n] = 0;
         in[counter++] = buffer;
         if (counter == 1000) {
             partition(in, out, counter);
